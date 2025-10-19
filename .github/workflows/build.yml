@@ -35,14 +35,53 @@ jobs:
           set -eux
           if [ "${{ matrix.arch }}" = "arm64" ]; then
             sudo dpkg --add-architecture arm64
+            sudo sed -Ei 's/^deb (https?:)/deb [arch=amd64] \1/' /etc/apt/sources.list
+            sudo sed -Ei 's/^deb-src (https?:)/deb-src [arch=amd64] \1/' /etc/apt/sources.list
+            for source in /etc/apt/sources.list.d/*.list; do
+              [ -e "$source" ] || continue
+              sudo sed -Ei 's/^deb (https?:)/deb [arch=amd64] \1/' "$source" || true
+              sudo sed -Ei 's/^deb-src (https?:)/deb-src [arch=amd64] \1/' "$source" || true
+            done
+            if compgen -G "/etc/apt/sources.list.d/*.sources" > /dev/null; then
+              for source in /etc/apt/sources.list.d/*.sources; do
+                sudo python3 - "$source" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+lines = path.read_text().splitlines()
+if any(line.startswith("Architectures:") for line in lines):
+    new_lines = ["Architectures: amd64" if line.startswith("Architectures:") else line for line in lines]
+else:
+    new_lines = []
+    inserted = False
+    for line in lines:
+        new_lines.append(line)
+        if not inserted and line.startswith("Types:"):
+            new_lines.append("Architectures: amd64")
+            inserted = True
+    if not inserted:
+        new_lines.append("Architectures: amd64")
+path.write_text("\n".join(new_lines) + "\n")
+PY
+              done
+            fi
+            sudo tee /etc/apt/sources.list.d/arm64-ports.list >/dev/null <<'EOF'
+deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse
+deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse
+deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-backports main restricted universe multiverse
+deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
+EOF
           fi
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
+            binutils \
             clang \
             cmake \
             rsync \
             zip \
+            zlib1g-dev \
             libjemalloc-dev \
             libssl-dev \
             libboost-system-dev \
@@ -55,6 +94,10 @@ jobs:
             sudo apt-get install -y \
               gcc-aarch64-linux-gnu \
               g++-aarch64-linux-gnu \
+              libc6-dev:arm64 \
+              libgcc-12-dev:arm64 \
+              libstdc++-12-dev:arm64 \
+              zlib1g-dev:arm64 \
               libjemalloc-dev:arm64 \
               libssl-dev:arm64 \
               libboost-system-dev:arm64 \
@@ -102,6 +145,9 @@ jobs:
           cp "$LIB_DIR/libjemalloc.a" "$THIRD_PARTY/jemalloc/lib/"
           cp "$LIB_DIR/libssl.a" "$THIRD_PARTY/openssl/"
           cp "$LIB_DIR/libcrypto.a" "$THIRD_PARTY/openssl/"
+          if [ -f "$LIB_DIR/libz.a" ]; then
+            cp "$LIB_DIR/libz.a" "$THIRD_PARTY/openssl/"
+          fi
 
           echo "THIRD_PARTY_DIR=$THIRD_PARTY" >> "$GITHUB_ENV"
 
@@ -124,6 +170,20 @@ jobs:
           cmake --build build --config Release -j "$(nproc)"
         env:
           THIRD_PARTY_LIBRARY_DIR: ${{ env.THIRD_PARTY_DIR }}
+
+      - name: Verify static binary
+        run: |
+          set -eux
+          FILE_OUTPUT="$(file bin/ppp)"
+          echo "$FILE_OUTPUT"
+          if ! grep -q 'statically linked' <<<"$FILE_OUTPUT"; then
+            echo "Binary is not reported as statically linked"
+            exit 1
+          fi
+          if readelf -l bin/ppp | grep -q 'Requesting program interpreter'; then
+            echo "Binary declares a dynamic loader"
+            exit 1
+          fi
 
       - name: Package artifact
         run: |
