@@ -17,13 +17,11 @@ jobs:
             lib_dir: x86_64-linux-gnu
             cc: gcc
             cxx: g++
-            ld: ld
             system_processor: x86_64
           - arch: arm64
             lib_dir: aarch64-linux-gnu
             cc: aarch64-linux-gnu-gcc
             cxx: aarch64-linux-gnu-g++
-            ld: aarch64-linux-gnu-ld
             system_processor: aarch64
 
     steps:
@@ -159,8 +157,7 @@ jobs:
             -DCMAKE_SYSTEM_NAME=Linux \
             -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.system_processor }} \
             -DCMAKE_C_COMPILER=${{ matrix.cc }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
-            -DCMAKE_LINKER=${{ matrix.ld }}
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
         env:
           THIRD_PARTY_LIBRARY_DIR: ${{ env.THIRD_PARTY_DIR }}
 
