@@ -44,34 +44,34 @@ jobs:
             done
             if compgen -G "/etc/apt/sources.list.d/*.sources" > /dev/null; then
               for source in /etc/apt/sources.list.d/*.sources; do
-                sudo python3 - "$source" <<'PY'
-import pathlib
-import sys
-
-path = pathlib.Path(sys.argv[1])
-lines = path.read_text().splitlines()
-if any(line.startswith("Architectures:") for line in lines):
-    new_lines = ["Architectures: amd64" if line.startswith("Architectures:") else line for line in lines]
-else:
-    new_lines = []
-    inserted = False
-    for line in lines:
-        new_lines.append(line)
-        if not inserted and line.startswith("Types:"):
-            new_lines.append("Architectures: amd64")
-            inserted = True
-    if not inserted:
-        new_lines.append("Architectures: amd64")
-path.write_text("\n".join(new_lines) + "\n")
-PY
+                sudo python3 -c 'import sys, textwrap; exec(textwrap.dedent("""
+                import pathlib
+                path = pathlib.Path(sys.argv[1])
+                lines = path.read_text().splitlines()
+                has_arch = False
+                new_lines = []
+                inserted = False
+                for line in lines:
+                    if line.startswith("Architectures:"):
+                        has_arch = True
+                        new_lines.append("Architectures: amd64")
+                    else:
+                        new_lines.append(line)
+                        if not inserted and line.startswith("Types:"):
+                            new_lines.append("Architectures: amd64")
+                            inserted = True
+                if not has_arch and not inserted:
+                    new_lines.append("Architectures: amd64")
+                path.write_text("\\n".join(new_lines) + "\\n")
+                """))' "$source"
               done
             fi
-            sudo tee /etc/apt/sources.list.d/arm64-ports.list >/dev/null <<'EOF'
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-backports main restricted universe multiverse
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
-EOF
+            sed 's/^ *//' <<'EOF' | sudo tee /etc/apt/sources.list.d/arm64-ports.list >/dev/null
+              deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse
+              deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse
+              deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-backports main restricted universe multiverse
+              deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
+            EOF
           fi
           sudo apt-get update
           sudo apt-get install -y \
