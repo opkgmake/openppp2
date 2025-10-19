@@ -87,9 +87,9 @@ jobs:
         fi
 
         GCC_VERSION=$($CXX_BIN -dumpfullversion 2>/dev/null || $CXX_BIN -dumpversion)
-        cat <<EOF > $GITHUB_WORKSPACE/boost-user-config.jam
-using gcc : ${GCC_VERSION} : ${CXX_BIN} : <archiver>${AR_BIN} <ranlib>${RANLIB_BIN} ;
-EOF
+        {
+          echo "using gcc : ${GCC_VERSION} : ${CXX_BIN} : <archiver>${AR_BIN} <ranlib>${RANLIB_BIN} ;"
+        } > $GITHUB_WORKSPACE/boost-user-config.jam
 
         {
           echo "CC=${CC_BIN}"
