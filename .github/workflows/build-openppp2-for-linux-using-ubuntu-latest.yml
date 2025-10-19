@@ -111,7 +111,16 @@ jobs:
         mv "boost_${BOOST_VERSION}" boost
         cd boost
         ./bootstrap.sh
-        ./b2 --user-config=$GITHUB_WORKSPACE/boost-user-config.jam toolset=gcc-$BOOST_TOOLSET_VERSION target-os=linux architecture=$BOOST_ARCH address-model=64 binary-format=elf link=static runtime-link=static stage
+        ./b2 --user-config=$GITHUB_WORKSPACE/boost-user-config.jam \
+          toolset=gcc-$BOOST_TOOLSET_VERSION \
+          target-os=linux \
+          architecture=$BOOST_ARCH \
+          address-model=64 \
+          binary-format=elf \
+          link=static \
+          runtime-link=static \
+          --without-python \
+          stage
 
     - name: Build jemalloc
       run: |
