@@ -155,7 +155,10 @@ jobs:
         cd openssl
         EXTRA_CONFIG=""
         if [ -n "${CROSS_COMPILE_PREFIX:-}" ]; then
-          EXTRA_CONFIG="--cross-compile-prefix=$CROSS_COMPILE_PREFIX"
+          case "${CC:-}" in
+            ${CROSS_COMPILE_PREFIX}*) ;;
+            *) EXTRA_CONFIG="--cross-compile-prefix=$CROSS_COMPILE_PREFIX" ;;
+          esac
         fi
         CC=$CC AR=$AR RANLIB=$RANLIB ./Configure ${{ matrix.openssl_target }} no-shared --prefix=$PWD --openssldir=$PWD $EXTRA_CONFIG
         make -j $ncpu
