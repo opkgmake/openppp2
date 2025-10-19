@@ -61,7 +61,7 @@ jobs:
               libboost-system-dev libboost-thread-dev libssl-dev libjemalloc-dev
           run: |
             cmake -S $GITHUB_WORKSPACE -B $GITHUB_WORKSPACE/build-arm64 -DCMAKE_BUILD_TYPE=Release -DPPP_FORCE_STATIC=ON
-            cmake --build $GITHUB_WORKSPACE/build-arm64 --target ppp --parallel 1
+            cmake --build $GITHUB_WORKSPACE/build-arm64 --target ppp --parallel $(nproc)
             file $GITHUB_WORKSPACE/bin/ppp
             ldd $GITHUB_WORKSPACE/bin/ppp || true
             mkdir -p $GITHUB_WORKSPACE/artifacts/linux-arm64
