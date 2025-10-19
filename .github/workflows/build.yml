@@ -66,19 +66,12 @@ jobs:
                 """))' "$source"
               done
             fi
-            sudo python3 - <<'PY'
-            import pathlib
-            import textwrap
-
-            path = pathlib.Path('/etc/apt/sources.list.d/arm64-ports.list')
-            content = textwrap.dedent('''\
-                deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse
-                deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse
-                deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-backports main restricted universe multiverse
-                deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
-            ''').lstrip()
-            path.write_text(content if content.endswith('\n') else content + '\n')
-            PY
+            sudo python3 -c "from pathlib import Path; lines = [
+                'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse',
+                'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse',
+                'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-backports main restricted universe multiverse',
+                'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse',
+            ]; Path('/etc/apt/sources.list.d/arm64-ports.list').write_text('\\n'.join(lines) + '\\n')"
           fi
           sudo apt-get update
           sudo apt-get install -y \
