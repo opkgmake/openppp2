@@ -116,7 +116,11 @@ ELSE()
 ENDIF()
 
 # Set the tripartite library directorys.
-SET(THIRD_PARTY_LIBRARY_DIR /root/dev)
+IF(DEFINED ENV{THIRD_PARTY_LIBRARY_DIR} AND NOT "$ENV{THIRD_PARTY_LIBRARY_DIR}" STREQUAL "")
+    SET(THIRD_PARTY_LIBRARY_DIR $ENV{THIRD_PARTY_LIBRARY_DIR})
+ELSE()
+    SET(THIRD_PARTY_LIBRARY_DIR /root/dev)
+ENDIF()
 
 # Set the compiled header file search directorys.
 INCLUDE_DIRECTORIES(
@@ -235,5 +239,5 @@ ELSE()
         libboost_thread.a 
         libboost_context.a 
         libboost_regex.a
-        libboost_filesystem.a) 
+        libboost_filesystem.a)
 ENDIF()

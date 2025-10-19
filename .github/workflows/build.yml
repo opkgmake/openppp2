@@ -1,0 +1,140 @@
+name: Build static binaries
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            lib_dir: x86_64-linux-gnu
+            cc: gcc
+            cxx: g++
+            ld: ld
+            system_processor: x86_64
+          - arch: arm64
+            lib_dir: aarch64-linux-gnu
+            cc: aarch64-linux-gnu-gcc
+            cxx: aarch64-linux-gnu-g++
+            ld: aarch64-linux-gnu-ld
+            system_processor: aarch64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build toolchains and libraries
+        run: |
+          set -eux
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo dpkg --add-architecture arm64
+          fi
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            cmake \
+            rsync \
+            zip \
+            libjemalloc-dev \
+            libssl-dev \
+            libboost-system-dev \
+            libboost-filesystem-dev \
+            libboost-thread-dev \
+            libboost-context-dev \
+            libboost-coroutine-dev \
+            libboost-regex-dev
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo apt-get install -y \
+              gcc-aarch64-linux-gnu \
+              g++-aarch64-linux-gnu \
+              libjemalloc-dev:arm64 \
+              libssl-dev:arm64 \
+              libboost-system-dev:arm64 \
+              libboost-filesystem-dev:arm64 \
+              libboost-thread-dev:arm64 \
+              libboost-context-dev:arm64 \
+              libboost-coroutine-dev:arm64 \
+              libboost-regex-dev:arm64
+          fi
+
+      - name: Prepare third-party directory
+        run: |
+          set -eux
+          THIRD_PARTY="$RUNNER_TEMP/third_party_${{ matrix.arch }}"
+          mkdir -p "$THIRD_PARTY/boost/stage/lib" "$THIRD_PARTY/jemalloc/lib" "$THIRD_PARTY/jemalloc/include" "$THIRD_PARTY/openssl/include"
+
+          rsync -a /usr/include/boost "$THIRD_PARTY/boost/"
+          if [ -d /usr/include/jemalloc ]; then
+            rsync -a /usr/include/jemalloc/ "$THIRD_PARTY/jemalloc/include/jemalloc/"
+          fi
+
+          if [ -d /usr/include/openssl ]; then
+            rsync -a /usr/include/openssl/ "$THIRD_PARTY/openssl/include/openssl/"
+          fi
+          if [ -d /usr/include/${{ matrix.lib_dir }}/openssl ]; then
+            rsync -a /usr/include/${{ matrix.lib_dir }}/openssl/ "$THIRD_PARTY/openssl/include/openssl/"
+          fi
+
+          LIB_DIR="/usr/lib/${{ matrix.lib_dir }}"
+          if [ ! -d "$LIB_DIR" ]; then
+            LIB_DIR="/usr/${{ matrix.lib_dir }}/lib"
+          fi
+
+          for lib in \
+            libboost_system.a \
+            libboost_coroutine.a \
+            libboost_thread.a \
+            libboost_context.a \
+            libboost_regex.a \
+            libboost_filesystem.a
+          do
+            cp "$LIB_DIR/$lib" "$THIRD_PARTY/boost/stage/lib/"
+          done
+
+          cp "$LIB_DIR/libjemalloc.a" "$THIRD_PARTY/jemalloc/lib/"
+          cp "$LIB_DIR/libssl.a" "$THIRD_PARTY/openssl/"
+          cp "$LIB_DIR/libcrypto.a" "$THIRD_PARTY/openssl/"
+
+          echo "THIRD_PARTY_DIR=$THIRD_PARTY" >> "$GITHUB_ENV"
+
+      - name: Configure CMake
+        run: |
+          set -eux
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.system_processor }} \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_LINKER=${{ matrix.ld }}
+        env:
+          THIRD_PARTY_LIBRARY_DIR: ${{ env.THIRD_PARTY_DIR }}
+
+      - name: Build
+        run: |
+          set -eux
+          cmake --build build --config Release -j "$(nproc)"
+        env:
+          THIRD_PARTY_LIBRARY_DIR: ${{ env.THIRD_PARTY_DIR }}
+
+      - name: Package artifact
+        run: |
+          set -eux
+          cd bin
+          ARTIFACT_NAME="openppp2-linux-${{ matrix.arch }}.zip"
+          rm -f "$ARTIFACT_NAME"
+          zip -r "$ARTIFACT_NAME" ppp
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openppp2-linux-${{ matrix.arch }}
+          path: bin/openppp2-linux-${{ matrix.arch }}.zip
