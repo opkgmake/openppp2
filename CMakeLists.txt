@@ -5,6 +5,8 @@ SET(NAME ppp)
 PROJECT(${NAME} C CXX) # CMAKE_CURRENT_SOURCE_DIR
 
 # C/CXX compiler configurations.
+OPTION(OPENPPP_FORCE_STATIC "Force fully static builds" OFF)
+
 SET(CMAKE_C_FLAGS "-fPIE -fvisibility=hidden -Wno-format -Wno-implicit-function-declaration")
 SET(CMAKE_CXX_FLAGS "-fPIE -fvisibility=hidden -Wno-format -Wno-inconsistent-missing-override -Wno-pointer-bool-conversion -Wno-unsequenced -Wno-null-dereference -Wno-gnu-variable-sized-type-not-at-end -Wno-tautological-undefined-compare -Wno-deprecated-declarations -Wno-shift-count-overflow")
 
@@ -112,7 +114,20 @@ ELSE()
     
     # When the __MUSL__ macro is enabled and compilation errors are encountered, you can add the connector option: -static
     # -rdynamic -Wl,-Bstatic -Wl,-Bdynamic -lstdc++ -lpthread -ldl -lz -lrt
-    SET(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++ -rdynamic -Wl,-Bstatic") 
+    IF(OPENPPP_FORCE_STATIC)
+        SET(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+
+        STRING(REPLACE "-fPIE" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        STRING(REPLACE "-fPIE" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
+        SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-PIE")
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-PIE")
+
+        SET(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++ -Wl,-Bstatic -no-pie")
+        SET(BUILD_SHARED_LIBS OFF)
+    ELSE()
+        SET(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++ -rdynamic -Wl,-Bstatic")
+    ENDIF()
 ENDIF()
 
 # Set the tripartite library directorys.
