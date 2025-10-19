@@ -67,18 +67,18 @@ jobs:
               done
             fi
             sudo python3 - <<'PY'
-import pathlib
-import textwrap
+            import pathlib
+            import textwrap
 
-path = pathlib.Path('/etc/apt/sources.list.d/arm64-ports.list')
-content = textwrap.dedent('''\
-    deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse
-    deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse
-    deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-backports main restricted universe multiverse
-    deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
-''').lstrip()
-path.write_text(content if content.endswith('\n') else content + '\n')
-PY
+            path = pathlib.Path('/etc/apt/sources.list.d/arm64-ports.list')
+            content = textwrap.dedent('''\
+                deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse
+                deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse
+                deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-backports main restricted universe multiverse
+                deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
+            ''').lstrip()
+            path.write_text(content if content.endswith('\n') else content + '\n')
+            PY
           fi
           sudo apt-get update
           sudo apt-get install -y \
