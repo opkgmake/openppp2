@@ -58,8 +58,13 @@
 - <img src="https://img.icons8.com/color/24/000000/mac-logo.png" width="20" height="20"> macOS
 - <img src="https://img.icons8.com/color/24/000000/android-os.png" width="20" height="20"> Android
 
+---
+
+## <img src="https://img.icons8.com/color/48/document.png" width="30" height="30"> 参考文档
+- [使用教程](docs/USAGE_CN.md) — 从构建到部署的分步操作指南。
+
 ## <img src="https://img.icons8.com/color/48/000000/processor.png" width="30" height="30"> 支持的CPU架构
-- **x86系列**  
+- **x86系列**
   i386 · x86_64
 - **ARM系列**  
   armv7l · armv7a · aarch64

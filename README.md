@@ -58,6 +58,11 @@ Next-generation security network access technology, providing high-performance V
 - <img src="https://img.icons8.com/color/24/000000/mac-logo.png" width="20" height="20"> macOS
 - <img src="https://img.icons8.com/color/24/000000/android-os.png" width="20" height="20"> Android
 
+---
+
+## <img src="https://img.icons8.com/color/48/document.png" width="30" height="30"> Documentation
+- [使用教程（简体中文）](docs/USAGE_CN.md) — step-by-step build & deployment guide.
+
 ## <img src="https://img.icons8.com/color/48/000000/processor.png" width="30" height="30"> Supported CPU Architectures
 - **x86 Series**  
   i386 · x86_64
