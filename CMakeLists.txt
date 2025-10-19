@@ -258,8 +258,8 @@ ELSE()
 ENDIF()
 
 # List of common cpp source files compilations for ppp/unix cmake solution projects.
-FILE(GLOB_RECURSE SOURCE_FILES 
-    ${PROJECT_SOURCE_DIR}/main.cpp 
+FILE(GLOB_RECURSE SOURCE_FILES
+    ${PROJECT_SOURCE_DIR}/main.cpp
     
     ${PROJECT_SOURCE_DIR}/common/lwip/my/*.c 
     ${PROJECT_SOURCE_DIR}/common/lwip/core/*.c 
@@ -276,8 +276,18 @@ FILE(GLOB_RECURSE SOURCE_FILES
     ${PROJECT_SOURCE_DIR}/common/unix/*.cpp 
     ${PROJECT_SOURCE_DIR}/common/aesni/aes.cpp
 
-    ${PROJECT_SOURCE_DIR}/ppp/*.c 
+    ${PROJECT_SOURCE_DIR}/ppp/*.c
     ${PROJECT_SOURCE_DIR}/ppp/*.cpp)
+
+IF(PPP_FORCE_STATIC)
+    STRING(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _PPP_SYSTEM_PROCESSOR_LOWER)
+    IF(_PPP_SYSTEM_PROCESSOR_LOWER MATCHES "^aarch64" OR _PPP_SYSTEM_PROCESSOR_LOWER MATCHES "^arm64")
+        SET(_PPP_BUFFERSWAP_ALLOCATOR "${PROJECT_SOURCE_DIR}/ppp/threading/BufferswapAllocator.cpp")
+        IF(EXISTS "${_PPP_BUFFERSWAP_ALLOCATOR}")
+            SET_SOURCE_FILES_PROPERTIES("${_PPP_BUFFERSWAP_ALLOCATOR}" PROPERTIES COMPILE_FLAGS "-O1")
+        ENDIF()
+    ENDIF()
+ENDIF()
 
 # Add the compiled output binary files.
 ADD_EXECUTABLE(${NAME} ${SOURCE_FILES} ${PLATFORM_SOURCE_FILES} ${AES_NI_SOURCE_FILES})
