@@ -5,8 +5,8 @@ SET(NAME ppp)
 PROJECT(${NAME} C CXX) # CMAKE_CURRENT_SOURCE_DIR
 
 # C/CXX compiler configurations.
-SET(CMAKE_C_FLAGS "-fPIE -fvisibility=hidden -Wno-format -Wno-implicit-function-declaration")
-SET(CMAKE_CXX_FLAGS "-fPIE -fvisibility=hidden -Wno-format -Wno-inconsistent-missing-override -Wno-pointer-bool-conversion -Wno-unsequenced -Wno-null-dereference -Wno-gnu-variable-sized-type-not-at-end -Wno-tautological-undefined-compare -Wno-deprecated-declarations -Wno-shift-count-overflow")
+SET(CMAKE_C_FLAGS "-fno-pie -fvisibility=hidden -Wno-format -Wno-implicit-function-declaration")
+SET(CMAKE_CXX_FLAGS "-fno-pie -fvisibility=hidden -Wno-format -Wno-inconsistent-missing-override -Wno-pointer-bool-conversion -Wno-unsequenced -Wno-null-dereference -Wno-gnu-variable-sized-type-not-at-end -Wno-tautological-undefined-compare -Wno-deprecated-declarations -Wno-shift-count-overflow")
 
 # Configure predefined compilation macros.
 # ADD_DEFINITIONS(-DANCIL_FD_BUFFER_STRUCT)
@@ -112,11 +112,17 @@ ELSE()
     
     # When the __MUSL__ macro is enabled and compilation errors are encountered, you can add the connector option: -static
     # -rdynamic -Wl,-Bstatic -Wl,-Bdynamic -lstdc++ -lpthread -ldl -lz -lrt
-    SET(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++ -rdynamic -Wl,-Bstatic") 
+    IF(NOT CMAKE_EXE_LINKER_FLAGS MATCHES "-static-libgcc")
+        SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++ -Wl,-Bstatic -no-pie")
+    ENDIF()
 ENDIF()
 
 # Set the tripartite library directorys.
-SET(THIRD_PARTY_LIBRARY_DIR /root/dev)
+IF(DEFINED ENV{THIRD_PARTY_LIBRARY_DIR} AND NOT "$ENV{THIRD_PARTY_LIBRARY_DIR}" STREQUAL "")
+    SET(THIRD_PARTY_LIBRARY_DIR $ENV{THIRD_PARTY_LIBRARY_DIR})
+ELSE()
+    SET(THIRD_PARTY_LIBRARY_DIR /root/dev)
+ENDIF()
 
 # Set the compiled header file search directorys.
 INCLUDE_DIRECTORIES(
@@ -186,8 +192,8 @@ IF(PLATFORM_SYSTEM_DARWIN)
     SET(BUILD_SHARED_LIBS ON) # System
 
     TARGET_LINK_LIBRARIES(${NAME} 
-        ${THIRD_PARTY_LIBRARY_DIR}/openssl/libssl.a 
-        ${THIRD_PARTY_LIBRARY_DIR}/openssl/libcrypto.a 
+        ${THIRD_PARTY_LIBRARY_DIR}/openssl/libssl.a
+        ${THIRD_PARTY_LIBRARY_DIR}/openssl/libcrypto.a
         ${THIRD_PARTY_LIBRARY_DIR}/jemalloc/lib/libjemalloc.a
 
         dl
@@ -203,8 +209,9 @@ ELSEIF(PLATFORM_COMPILER_CLANG)
     SET(BUILD_SHARED_LIBS ON)
 
     TARGET_LINK_LIBRARIES(${NAME}
-        libssl.a 
-        libcrypto.a 
+        libssl.a
+        libcrypto.a
+        libz.a
         libjemalloc.a
         # liburing.a
 
@@ -221,8 +228,9 @@ ELSEIF(PLATFORM_COMPILER_CLANG)
 ELSE()
     TARGET_LINK_LIBRARIES(${NAME} 
         libc.a
-        libssl.a 
-        libcrypto.a 
+        libssl.a
+        libcrypto.a
+        libz.a
         libjemalloc.a
         # liburing.a
 
@@ -235,5 +243,5 @@ ELSE()
         libboost_thread.a 
         libboost_context.a 
         libboost_regex.a
-        libboost_filesystem.a) 
+        libboost_filesystem.a)
 ENDIF()
