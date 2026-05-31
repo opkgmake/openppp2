@@ -49,33 +49,38 @@ jobs:
           THIRD_DIR=$WORKSPACE/third_party
           mkdir -p $THIRD_DIR
 
-          # Create symlinks matching expected directory structure:
-          # THIRD_PARTY_LIBRARY_DIR/boost/stage/lib -> boost-arm64/lib
-          # THIRD_PARTY_LIBRARY_DIR/openssl -> openssl-arm64
-          # THIRD_PARTY_LIBRARY_DIR/jemalloc -> jemalloc-arm64
+          # Create symlinks matching expected directory structure
+          # Boost: include at third_party/boost/include, libs at third_party/boost/stage/lib
           mkdir -p $THIRD_DIR/boost/stage
+          ln -s $PWD/boost-arm64/include $THIRD_DIR/boost/include
           ln -s $PWD/boost-arm64/lib $THIRD_DIR/boost/stage/lib
-          ln -s $PWD/boost-arm64/include $THIRD_DIR/boost/include 2>/dev/null || true
+          # OpenSSL: at third_party/openssl (has include/ and lib/)
           ln -s $PWD/openssl-arm64 $THIRD_DIR/openssl
+          # jemalloc: at third_party/jemalloc (has include/ and lib/)
           ln -s $PWD/jemalloc-arm64 $THIRD_DIR/jemalloc
 
           # Replace THIRD_PARTY_LIBRARY_DIR default value
           sed -i "s|SET(THIRD_PARTY_LIBRARY_DIR /root/dev|SET(THIRD_PARTY_LIBRARY_DIR $THIRD_DIR|" CMakeLists.txt
+
+          # Fix Boost include path: add /include
+          sed -i 's|${THIRD_PARTY_LIBRARY_DIR}/boost$|${THIRD_PARTY_LIBRARY_DIR}/boost/include|' CMakeLists.txt
+          sed -i 's|${THIRD_PARTY_LIBRARY_DIR}/boost\r|${THIRD_PARTY_LIBRARY_DIR}/boost/include|' CMakeLists.txt
 
           # Remove flags that conflict with dynamic linking
           sed -i 's/-static-libstdc++//g' CMakeLists.txt
           sed -i 's/-rdynamic//g' CMakeLists.txt
           sed -i 's/-Wl,-Bstatic//g' CMakeLists.txt
           sed -i 's/-Wl,-Bdynamic//g' CMakeLists.txt
-          # Remove libc.a and unwind from link libraries
           sed -i '/libc\.a/d' CMakeLists.txt
           sed -i '/unwind/d' CMakeLists.txt
 
-          echo "=== THIRD_PARTY_LIBRARY_DIR set to $THIRD_DIR ==="
+          echo "=== Directory structure ==="
           ls -la $THIRD_DIR/
-          ls -la $THIRD_DIR/boost/stage/
-          ls -la $THIRD_DIR/openssl/lib/ | head -5
-          ls -la $THIRD_DIR/jemalloc/lib/ | head -5
+          ls -la $THIRD_DIR/boost/
+          ls $THIRD_DIR/boost/include/ | head -5
+          ls $THIRD_DIR/boost/stage/lib/ | head -5
+          ls $THIRD_DIR/openssl/lib/ | head -5
+          ls $THIRD_DIR/jemalloc/lib/ | head -5
 
       - name: Configure & Build
         run: |
