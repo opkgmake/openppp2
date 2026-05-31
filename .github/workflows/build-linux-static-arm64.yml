@@ -61,7 +61,14 @@ jobs:
 
           # Fix Boost include path: add /include
           sed -i 's|${THIRD_PARTY_LIBRARY_DIR}/boost$|${THIRD_PARTY_LIBRARY_DIR}/boost/include|' CMakeLists.txt
-          sed -i 's|${THIRD_PARTY_LIBRARY_DIR}/boost\r|${THIRD_PARTY_LIBRARY_DIR}/boost/include|' CMakeLists.txt
+          sed -i "s|${THIRD_PARTY_LIBRARY_DIR}/boost\r|${THIRD_PARTY_LIBRARY_DIR}/boost/include|" CMakeLists.txt
+
+          # Fix OpenSSL link directory: add /lib
+          sed -i 's|${THIRD_PARTY_LIBRARY_DIR}/openssl$|${THIRD_PARTY_LIBRARY_DIR}/openssl/lib|' CMakeLists.txt
+          sed -i "s|${THIRD_PARTY_LIBRARY_DIR}/openssl\r|${THIRD_PARTY_LIBRARY_DIR}/openssl/lib|" CMakeLists.txt
+
+          # Fix darwin section openssl paths to use full .a paths from third_party
+          # (they are already using full paths ${THIRD_PARTY_LIBRARY_DIR}/openssl/libssl.a etc.)
 
           # Remove flags that conflict with dynamic linking
           sed -i 's/-static-libstdc++//g' CMakeLists.txt
@@ -70,6 +77,16 @@ jobs:
           sed -i 's/-Wl,-Bdynamic//g' CMakeLists.txt
           sed -i '/libc\.a/d' CMakeLists.txt
           sed -i '/unwind/d' CMakeLists.txt
+
+          # Debug: show patched CMakeLists link directories and libraries
+          echo "=== LINK_DIRECTORIES ==="
+          grep -n "LINK_DIRECTORIES" CMakeLists.txt
+          echo "=== INCLUDE_DIRECTORIES ==="
+          grep -n "INCLUDE_DIRECTORIES" CMakeLists.txt
+          echo "=== Library files ==="
+          ls $THIRD_DIR/openssl/lib/libssl* $THIRD_DIR/openssl/lib/libcrypto* 2>&1
+          ls $THIRD_DIR/boost/stage/lib/libboost_* | head -5
+          ls $THIRD_DIR/jemalloc/lib/libjemalloc* 2>&1
 
       - name: Configure
         run: |
@@ -91,10 +108,10 @@ jobs:
           cd build
           echo "=== Looking for ppp binary ==="
           find . -type f -executable | head -20
-          find . -name "ppp*" -type f | head -20
           BINARY=$(find . -name "ppp" -type f -executable | head -1)
           if [ -z "$BINARY" ]; then
             echo "ERROR: ppp binary not found in build dir!"
+            find . -name "ppp*" -type f
             exit 1
           fi
           echo "Found binary: $BINARY"
