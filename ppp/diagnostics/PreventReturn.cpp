@@ -128,13 +128,10 @@ namespace ppp
             }
 
             /**
-             * @brief Builds platform-specific PID file location.
+             * @brief Builds PID file location in the application's own directory.
              */
-#if defined(_MACOS)
-            ppp::string path = ppp::io::File::GetFullPath(("/tmp/" + ppp::string(name) + ".pid").data());
-#else
-            ppp::string path = ppp::io::File::GetFullPath(("/var/run/" + ppp::string(name) + ".pid").data());
-#endif
+            ppp::string app_dir = ppp::GetApplicationStartupPath();
+            ppp::string path = ppp::io::File::GetFullPath((app_dir + "/" + ppp::string(name) + ".pid").data());
 
             int pid_file = open(path.data(), O_CREAT | O_RDWR, 0666);
             if (pid_file == -1)
