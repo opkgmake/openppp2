@@ -56,6 +56,10 @@ jobs:
           ln -s $PWD/openssl-arm64 $THIRD_DIR/openssl
           ln -s $PWD/jemalloc-arm64 $THIRD_DIR/jemalloc
 
+          # Create stub libboost_coroutine.a (Boost.Coroutine not built in cross-compile,
+          # but CMakeLists.txt references it; openppp2 only uses coroutine headers, not the .a)
+          aarch64-linux-gnu-ar rcs $PWD/boost-arm64/lib/libboost_coroutine.a
+
           # Replace THIRD_PARTY_LIBRARY_DIR default value
           sed -i "s|SET(THIRD_PARTY_LIBRARY_DIR /root/dev|SET(THIRD_PARTY_LIBRARY_DIR $THIRD_DIR|" CMakeLists.txt
 
@@ -67,9 +71,6 @@ jobs:
           sed -i 's|${THIRD_PARTY_LIBRARY_DIR}/openssl$|${THIRD_PARTY_LIBRARY_DIR}/openssl/lib|' CMakeLists.txt
           sed -i "s|${THIRD_PARTY_LIBRARY_DIR}/openssl\r|${THIRD_PARTY_LIBRARY_DIR}/openssl/lib|" CMakeLists.txt
 
-          # Fix darwin section openssl paths to use full .a paths from third_party
-          # (they are already using full paths ${THIRD_PARTY_LIBRARY_DIR}/openssl/libssl.a etc.)
-
           # Remove flags that conflict with dynamic linking
           sed -i 's/-static-libstdc++//g' CMakeLists.txt
           sed -i 's/-rdynamic//g' CMakeLists.txt
@@ -78,15 +79,12 @@ jobs:
           sed -i '/libc\.a/d' CMakeLists.txt
           sed -i '/unwind/d' CMakeLists.txt
 
-          # Debug: show patched CMakeLists link directories and libraries
-          echo "=== LINK_DIRECTORIES ==="
-          grep -n "LINK_DIRECTORIES" CMakeLists.txt
-          echo "=== INCLUDE_DIRECTORIES ==="
-          grep -n "INCLUDE_DIRECTORIES" CMakeLists.txt
-          echo "=== Library files ==="
-          ls $THIRD_DIR/openssl/lib/libssl* $THIRD_DIR/openssl/lib/libcrypto* 2>&1
-          ls $THIRD_DIR/boost/stage/lib/libboost_* | head -5
-          ls $THIRD_DIR/jemalloc/lib/libjemalloc* 2>&1
+          echo "=== All boost libs ==="
+          ls $THIRD_DIR/boost/stage/lib/libboost_*
+          echo "=== OpenSSL libs ==="
+          ls $THIRD_DIR/openssl/lib/libssl* $THIRD_DIR/openssl/lib/libcrypto*
+          echo "=== jemalloc libs ==="
+          ls $THIRD_DIR/jemalloc/lib/libjemalloc*
 
       - name: Configure
         run: |
@@ -106,8 +104,6 @@ jobs:
       - name: Verify & Package
         run: |
           cd build
-          echo "=== Looking for ppp binary ==="
-          find . -type f -executable | head -20
           BINARY=$(find . -name "ppp" -type f -executable | head -1)
           if [ -z "$BINARY" ]; then
             echo "ERROR: ppp binary not found in build dir!"
