@@ -79,13 +79,6 @@ jobs:
           sed -i '/libc\.a/d' CMakeLists.txt
           sed -i '/unwind/d' CMakeLists.txt
 
-          echo "=== All boost libs ==="
-          ls $THIRD_DIR/boost/stage/lib/libboost_*
-          echo "=== OpenSSL libs ==="
-          ls $THIRD_DIR/openssl/lib/libssl* $THIRD_DIR/openssl/lib/libcrypto*
-          echo "=== jemalloc libs ==="
-          ls $THIRD_DIR/jemalloc/lib/libjemalloc*
-
       - name: Configure
         run: |
           mkdir -p build && cd build
@@ -103,11 +96,11 @@ jobs:
 
       - name: Verify & Package
         run: |
-          cd build
-          BINARY=$(find . -name "ppp" -type f -executable | head -1)
-          if [ -z "$BINARY" ]; then
-            echo "ERROR: ppp binary not found in build dir!"
-            find . -name "ppp*" -type f
+          # Binary is output to ../bin/ppp (per CMakeLists.txt EXECUTABLE_OUTPUT_PATH)
+          BINARY=$PWD/bin/ppp
+          if [ ! -f "$BINARY" ]; then
+            echo "ERROR: ppp binary not found at $BINARY!"
+            find . -name "ppp" -type f -executable 2>/dev/null
             exit 1
           fi
           echo "Found binary: $BINARY"
@@ -116,8 +109,7 @@ jobs:
           aarch64-linux-gnu-readelf -d "$BINARY" | grep NEEDED || true
           aarch64-linux-gnu-strip "$BINARY"
           ls -lh "$BINARY"
-          cp "$BINARY" ../ppp
-          cd ..
+          cp "$BINARY" ./ppp
           tar czf openppp2-linux-aarch64.tar.gz ppp
           ls -lh openppp2-linux-aarch64.tar.gz
 
