@@ -60,8 +60,9 @@ namespace ppp {
             }
 
             if (ec) {
-                ppp::diagnostics::SetLastErrorCode(ppp::diagnostics::ErrorCode::FileStatFailed);
-                return false;
+                // On Android/limited environments, stat may fail for non-existent paths or
+                // due to permission issues. Fall through to access() check rather than
+                // immediately failing, since the caller may just want to know if the file exists.
             }
 
             if (access(path, F_OK) == 0) {
