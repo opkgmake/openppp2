@@ -25,8 +25,8 @@ jobs:
 
       - name: Build Boost for ARM64
         run: |
-          BOOST_VER=1_84_0
-          curl -sSL https://boostorg.jfrog.io/artifactory/main/release/1.84.0/source/boost_1_84_0.tar.gz | tar xz
+          curl -sSL -o boost.tar.gz https://sourceforge.net/projects/boost/files/boost/1.84.0/boost_1_84_0.tar.gz/download
+          tar xzf boost.tar.gz
           cd boost_1_84_0
           ./bootstrap.sh --with-libraries=system,context,filesystem,program_options,regex,serialization,thread,date_time,atomic,chrono,log,random,test --prefix=$PWD/../boost-arm64
           echo "using gcc : aarch64 : aarch64-linux-gnu-g++ ;" > user-config.jam
@@ -50,13 +50,9 @@ jobs:
           sed -i 's/-rdynamic//g' CMakeLists.txt
           sed -i 's/-Wl,-Bstatic//g' CMakeLists.txt
           sed -i 's/-Wl,-Bdynamic//g' CMakeLists.txt
-
           # Remove libc.a and unwind from link libraries
           sed -i '/libc\.a/d' CMakeLists.txt
           sed -i '/unwind/d' CMakeLists.txt
-
-          # Replace static library paths for cross-compilation
-          sed -i 's|/usr/lib/aarch64-linux-gnu/lib|/usr/lib/aarch64-linux-gnu/lib|g' CMakeLists.txt
 
       - name: Configure & Build
         run: |
