@@ -14,7 +14,7 @@ jobs:
       - name: Install cross-compilation toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu cmake make python3
+          sudo apt-get install -y -qq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu cmake make python3 autoconf automake libtool
 
       - name: Build OpenSSL for ARM64
         run: |
@@ -45,12 +45,37 @@ jobs:
 
       - name: Patch CMakeLists.txt for cross-compilation
         run: |
+          WORKSPACE=$PWD
+          THIRD_DIR=$WORKSPACE/third_party
+          mkdir -p $THIRD_DIR
+
+          # Create symlinks matching expected directory structure:
+          # THIRD_PARTY_LIBRARY_DIR/boost/stage/lib -> boost-arm64/lib
+          # THIRD_PARTY_LIBRARY_DIR/openssl -> openssl-arm64
+          # THIRD_PARTY_LIBRARY_DIR/jemalloc -> jemalloc-arm64
+          mkdir -p $THIRD_DIR/boost/stage
+          ln -s $PWD/boost-arm64/lib $THIRD_DIR/boost/stage/lib
+          ln -s $PWD/boost-arm64/include $THIRD_DIR/boost/include 2>/dev/null || true
+          ln -s $PWD/openssl-arm64 $THIRD_DIR/openssl
+          ln -s $PWD/jemalloc-arm64 $THIRD_DIR/jemalloc
+
+          # Replace THIRD_PARTY_LIBRARY_DIR default value
+          sed -i "s|SET(THIRD_PARTY_LIBRARY_DIR /root/dev|SET(THIRD_PARTY_LIBRARY_DIR $THIRD_DIR|" CMakeLists.txt
+
+          # Remove flags that conflict with dynamic linking
           sed -i 's/-static-libstdc++//g' CMakeLists.txt
           sed -i 's/-rdynamic//g' CMakeLists.txt
           sed -i 's/-Wl,-Bstatic//g' CMakeLists.txt
           sed -i 's/-Wl,-Bdynamic//g' CMakeLists.txt
+          # Remove libc.a and unwind from link libraries
           sed -i '/libc\.a/d' CMakeLists.txt
           sed -i '/unwind/d' CMakeLists.txt
+
+          echo "=== THIRD_PARTY_LIBRARY_DIR set to $THIRD_DIR ==="
+          ls -la $THIRD_DIR/
+          ls -la $THIRD_DIR/boost/stage/
+          ls -la $THIRD_DIR/openssl/lib/ | head -5
+          ls -la $THIRD_DIR/jemalloc/lib/ | head -5
 
       - name: Configure & Build
         run: |
@@ -60,18 +85,9 @@ jobs:
             -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
             -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
             -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-            "-DCMAKE_FIND_ROOT_PATH=$PWD/../openssl-arm64;$PWD/../boost-arm64;$PWD/../jemalloc-arm64" \
-            -DOPENSSL_ROOT_DIR=$PWD/../openssl-arm64 \
-            -DOPENSSL_INCLUDE_DIR=$PWD/../openssl-arm64/include \
-            -DOPENSSL_CRYPTO_LIBRARY=$PWD/../openssl-arm64/lib/libcrypto.a \
-            -DOPENSSL_SSL_LIBRARY=$PWD/../openssl-arm64/lib/libssl.a \
-            -DBoost_INCLUDE_DIR=$PWD/../boost-arm64/include \
-            -DBoost_LIBRARY_DIR=$PWD/../boost-arm64/lib \
-            -DJEMALLOC_INCLUDE_DIR=$PWD/../jemalloc-arm64/include \
-            -DJEMALLOC_LIBRARY=$PWD/../jemalloc-arm64/lib/libjemalloc.a \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=OFF
-          make -j$(nproc)
+          make -j$(nproc) 2>&1 | tail -50
 
       - name: Verify & Package
         run: |
