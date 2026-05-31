@@ -50,13 +50,10 @@ jobs:
           mkdir -p $THIRD_DIR
 
           # Create symlinks matching expected directory structure
-          # Boost: include at third_party/boost/include, libs at third_party/boost/stage/lib
           mkdir -p $THIRD_DIR/boost/stage
           ln -s $PWD/boost-arm64/include $THIRD_DIR/boost/include
           ln -s $PWD/boost-arm64/lib $THIRD_DIR/boost/stage/lib
-          # OpenSSL: at third_party/openssl (has include/ and lib/)
           ln -s $PWD/openssl-arm64 $THIRD_DIR/openssl
-          # jemalloc: at third_party/jemalloc (has include/ and lib/)
           ln -s $PWD/jemalloc-arm64 $THIRD_DIR/jemalloc
 
           # Replace THIRD_PARTY_LIBRARY_DIR default value
@@ -74,15 +71,7 @@ jobs:
           sed -i '/libc\.a/d' CMakeLists.txt
           sed -i '/unwind/d' CMakeLists.txt
 
-          echo "=== Directory structure ==="
-          ls -la $THIRD_DIR/
-          ls -la $THIRD_DIR/boost/
-          ls $THIRD_DIR/boost/include/ | head -5
-          ls $THIRD_DIR/boost/stage/lib/ | head -5
-          ls $THIRD_DIR/openssl/lib/ | head -5
-          ls $THIRD_DIR/jemalloc/lib/ | head -5
-
-      - name: Configure & Build
+      - name: Configure
         run: |
           mkdir -p build && cd build
           cmake .. \
@@ -92,15 +81,20 @@ jobs:
             -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=OFF
-          make -j$(nproc) 2>&1 | tail -50
+
+      - name: Build
+        run: |
+          cd build && make -j$(nproc)
 
       - name: Verify & Package
         run: |
           cd build
+          echo "=== Looking for ppp binary ==="
+          find . -type f -executable | head -20
+          find . -name "ppp*" -type f | head -20
           BINARY=$(find . -name "ppp" -type f -executable | head -1)
           if [ -z "$BINARY" ]; then
-            echo "ERROR: ppp binary not found!"
-            find . -name "ppp*" -type f
+            echo "ERROR: ppp binary not found in build dir!"
             exit 1
           fi
           echo "Found binary: $BINARY"
