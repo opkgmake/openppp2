@@ -1,0 +1,106 @@
+name: Build Linux ARM64 (glibc cross-compile)
+
+on:
+  push:
+    branches: [ static-arm64 ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross-compilation toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu cmake make python3
+
+      - name: Build OpenSSL for ARM64
+        run: |
+          git clone --depth 1 --branch openssl-3.1.5 https://github.com/openssl/openssl.git
+          cd openssl
+          ./Configure linux-aarch64 --prefix=$PWD/../openssl-arm64 no-shared no-tests CC=aarch64-linux-gnu-gcc RANLIB=aarch64-linux-gnu-ranlib AR=aarch64-linux-gnu-ar
+          make -j$(nproc) && make install_sw
+
+      - name: Build Boost for ARM64
+        run: |
+          BOOST_VER=1_84_0
+          curl -sSL https://boostorg.jfrog.io/artifactory/main/release/1.84.0/source/boost_1_84_0.tar.gz | tar xz
+          cd boost_1_84_0
+          ./bootstrap.sh --with-libraries=system,context,filesystem,program_options,regex,serialization,thread,date_time,atomic,chrono,log,random,test --prefix=$PWD/../boost-arm64
+          echo "using gcc : aarch64 : aarch64-linux-gnu-g++ ;" > user-config.jam
+          ./b2 -j$(nproc) toolset=gcc-aarch64 architecture=arm address-model=64 abi=aapcs \
+            --user-config=user-config.jam \
+            cxxflags="-fPIC" linkflags="-fPIC" \
+            variant=release threading=multi link=static runtime-link=static \
+            install
+
+      - name: Build jemalloc for ARM64
+        run: |
+          git clone --depth 1 --branch 5.3.0 https://github.com/jemalloc/jemalloc.git
+          cd jemalloc
+          ./autogen.sh --host=aarch64-linux-gnu CC=aarch64-linux-gnu-gcc AR=aarch64-linux-gnu-ar RANLIB=aarch64-linux-gnu-ranlib --prefix=$PWD/../jemalloc-arm64 --disable-shared
+          make -j$(nproc) && make install
+
+      - name: Patch CMakeLists.txt for cross-compilation
+        run: |
+          # Remove flags that conflict with cross-compilation or dynamic linking
+          sed -i 's/-static-libstdc++//g' CMakeLists.txt
+          sed -i 's/-rdynamic//g' CMakeLists.txt
+          sed -i 's/-Wl,-Bstatic//g' CMakeLists.txt
+          sed -i 's/-Wl,-Bdynamic//g' CMakeLists.txt
+
+          # Remove libc.a and unwind from link libraries
+          sed -i '/libc\.a/d' CMakeLists.txt
+          sed -i '/unwind/d' CMakeLists.txt
+
+          # Replace static library paths for cross-compilation
+          sed -i 's|/usr/lib/aarch64-linux-gnu/lib|/usr/lib/aarch64-linux-gnu/lib|g' CMakeLists.txt
+
+      - name: Configure & Build
+        run: |
+          mkdir -p build && cd build
+          cmake .. \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_FIND_ROOT_PATH=$PWD/../openssl-arm64;$PWD/../boost-arm64;$PWD/../jemalloc-arm64 \
+            -DOPENSSL_ROOT_DIR=$PWD/../openssl-arm64 \
+            -DOPENSSL_INCLUDE_DIR=$PWD/../openssl-arm64/include \
+            -DOPENSSL_CRYPTO_LIBRARY=$PWD/../openssl-arm64/lib/libcrypto.a \
+            -DOPENSSL_SSL_LIBRARY=$PWD/../openssl-arm64/lib/libssl.a \
+            -DBoost_INCLUDE_DIR=$PWD/../boost-arm64/include \
+            -DBoost_LIBRARY_DIR=$PWD/../boost-arm64/lib \
+            -DJEMALLOC_INCLUDE_DIR=$PWD/../jemalloc-arm64/include \
+            -DJEMALLOC_LIBRARY=$PWD/../jemalloc-arm64/lib/libjemalloc.a \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF
+          make -j$(nproc)
+
+      - name: Verify & Package
+        run: |
+          cd build
+          BINARY=$(find . -name "ppp" -type f -executable | head -1)
+          if [ -z "$BINARY" ]; then
+            echo "ERROR: ppp binary not found!"
+            find . -name "ppp*" -type f
+            exit 1
+          fi
+          echo "Found binary: $BINARY"
+          file "$BINARY"
+          aarch64-linux-gnu-readelf -h "$BINARY" | head -5
+          aarch64-linux-gnu-readelf -d "$BINARY" | grep NEEDED || true
+          aarch64-linux-gnu-strip "$BINARY"
+          ls -lh "$BINARY"
+          cp "$BINARY" ../ppp
+          cd ..
+          tar czf openppp2-linux-aarch64.tar.gz ppp
+          ls -lh openppp2-linux-aarch64.tar.gz
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openppp2-linux-aarch64
+          path: openppp2-linux-aarch64.tar.gz
