@@ -45,12 +45,10 @@ jobs:
 
       - name: Patch CMakeLists.txt for cross-compilation
         run: |
-          # Remove flags that conflict with cross-compilation or dynamic linking
           sed -i 's/-static-libstdc++//g' CMakeLists.txt
           sed -i 's/-rdynamic//g' CMakeLists.txt
           sed -i 's/-Wl,-Bstatic//g' CMakeLists.txt
           sed -i 's/-Wl,-Bdynamic//g' CMakeLists.txt
-          # Remove libc.a and unwind from link libraries
           sed -i '/libc\.a/d' CMakeLists.txt
           sed -i '/unwind/d' CMakeLists.txt
 
@@ -62,7 +60,7 @@ jobs:
             -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
             -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
             -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-            -DCMAKE_FIND_ROOT_PATH=$PWD/../openssl-arm64;$PWD/../boost-arm64;$PWD/../jemalloc-arm64 \
+            "-DCMAKE_FIND_ROOT_PATH=$PWD/../openssl-arm64;$PWD/../boost-arm64;$PWD/../jemalloc-arm64" \
             -DOPENSSL_ROOT_DIR=$PWD/../openssl-arm64 \
             -DOPENSSL_INCLUDE_DIR=$PWD/../openssl-arm64/include \
             -DOPENSSL_CRYPTO_LIBRARY=$PWD/../openssl-arm64/lib/libcrypto.a \
