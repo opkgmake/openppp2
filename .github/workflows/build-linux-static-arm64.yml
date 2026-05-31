@@ -25,9 +25,9 @@ jobs:
 
       - name: Build Boost for ARM64
         run: |
-          curl -sSL -o boost.tar.gz https://sourceforge.net/projects/boost/files/boost/1.84.0/boost_1_84_0.tar.gz/download
-          tar xzf boost.tar.gz
+          git clone --depth 1 --branch boost-1.84.0 https://github.com/boostorg/boost.git boost_1_84_0
           cd boost_1_84_0
+          git submodule update --init --recursive
           ./bootstrap.sh --with-libraries=system,context,filesystem,program_options,regex,serialization,thread,date_time,atomic,chrono,log,random,test --prefix=$PWD/../boost-arm64
           echo "using gcc : aarch64 : aarch64-linux-gnu-g++ ;" > user-config.jam
           ./b2 -j$(nproc) toolset=gcc-aarch64 architecture=arm address-model=64 abi=aapcs \
